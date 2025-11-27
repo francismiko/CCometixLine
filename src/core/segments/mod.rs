@@ -4,6 +4,8 @@ pub mod directory;
 pub mod git;
 pub mod model;
 pub mod output_style;
+#[cfg(feature = "quota")]
+pub mod quota;
 pub mod session;
 pub mod update;
 pub mod usage;
@@ -31,6 +33,8 @@ pub use directory::DirectorySegment;
 pub use git::GitSegment;
 pub use model::ModelSegment;
 pub use output_style::OutputStyleSegment;
+#[cfg(feature = "quota")]
+pub use quota::QuotaSegment;
 pub use session::SessionSegment;
 pub use update::UpdateSegment;
 pub use usage::UsageSegment;

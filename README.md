@@ -35,6 +35,14 @@ The statusline shows: Model | Directory | Git Branch Status | Context Window Inf
 - **Robust patcher** - Survives Claude Code version updates
 - **Automatic backups** - Safe modification with easy recovery
 
+### Third-Party Quota Display (Fork Feature)
+- **Subscription quota tracking** - Display daily/monthly usage limits from third-party platforms
+- **Smart caching** - 60s TTL to reduce API requests
+- **Low quota warning** - ⚠️ indicator when remaining < 15%
+- **Graceful degradation** - Falls back to cached data on API failure
+
+> ⚠️ **Note**: Currently only supports [银河录像局](https://nf.video) platform. Generic third-party API configuration will be available in future releases.
+
 ## Installation
 
 ### Quick Install (Recommended)

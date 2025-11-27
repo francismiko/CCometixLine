@@ -57,6 +57,8 @@ impl SegmentListComponent {
                     SegmentId::Session => "Session",
                     SegmentId::OutputStyle => "Output Style",
                     SegmentId::Update => "Update",
+                    #[cfg(feature = "quota")]
+                    SegmentId::Quota => "Quota",
                 };
 
                 if is_selected {

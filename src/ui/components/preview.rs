@@ -183,6 +183,19 @@ impl PreviewComponent {
                         map
                     },
                 },
+                #[cfg(feature = "quota")]
+                SegmentId::Quota => SegmentData {
+                    primary: "日 12.4/70".to_string(),
+                    secondary: "月 1162/2100".to_string(),
+                    metadata: {
+                        let mut map = HashMap::new();
+                        map.insert("daily_remaining".to_string(), "12.4".to_string());
+                        map.insert("daily_total".to_string(), "70".to_string());
+                        map.insert("month_remaining".to_string(), "1162".to_string());
+                        map.insert("month_total".to_string(), "2100".to_string());
+                        map
+                    },
+                },
             };
 
             segments_data.push((segment_config.clone(), mock_data));

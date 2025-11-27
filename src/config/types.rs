@@ -73,6 +73,8 @@ pub enum SegmentId {
     Session,
     OutputStyle,
     Update,
+    #[cfg(feature = "quota")]
+    Quota,
 }
 
 // Legacy compatibility structure

@@ -505,6 +505,11 @@ pub fn collect_all_segments(
                 let segment = UpdateSegment::new();
                 segment.collect(input)
             }
+            #[cfg(feature = "quota")]
+            crate::config::SegmentId::Quota => {
+                let segment = QuotaSegment::new();
+                segment.collect(input)
+            }
         };
 
         if let Some(data) = segment_data {

@@ -17,18 +17,39 @@ struct QuotaCache {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct QuotaData {
-    daily_remaining: f64,
-    daily_total: f64,
-    month_remaining: f64,
-    month_total: f64,
-    today_requests: u64,
-    today_cost: f64,
+    remaining_usd: f64,
+    daily_limit_usd: f64,
+    total_cost_usd: f64,
+    request_count: u64,
+    can_make_request: bool,
+    api_healthy: bool,
+}
+
+// API response structure for relay.nf.video/v1/usage
+#[derive(Debug, Deserialize)]
+struct ApiResponse {
+    usage: UsageData,
+    limits: LimitsData,
 }
 
 #[derive(Debug, Deserialize)]
-struct ApiResponse {
-    data: QuotaData,
-    success: bool,
+struct UsageData {
+    #[serde(rename = "remainingUSD")]
+    remaining_usd: f64,
+    #[serde(rename = "dailyLimitUSD")]
+    daily_limit_usd: f64,
+    #[serde(rename = "totalCostUSD")]
+    total_cost_usd: f64,
+    #[serde(rename = "requestCount")]
+    request_count: u64,
+    #[serde(rename = "canMakeRequest")]
+    can_make_request: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct LimitsData {
+    #[serde(rename = "dailyUSD")]
+    daily_usd: f64,
 }
 
 impl QuotaSegment {
@@ -99,10 +120,10 @@ impl QuotaSegment {
     }
 
     fn fetch_quota(config: &QuotaConfig, token: &str) -> Option<QuotaData> {
-        let cookie = format!("satoken-user={}", token);
+        let auth_header = format!("Bearer {}", token);
 
         let response = ureq::get(&config.api_url)
-            .set("Cookie", &cookie)
+            .set("Authorization", &auth_header)
             .set("Accept", "application/json")
             .timeout(std::time::Duration::from_secs(config.timeout))
             .call()
@@ -110,11 +131,14 @@ impl QuotaSegment {
 
         let api_response: ApiResponse = response.into_json().ok()?;
 
-        if api_response.success {
-            Some(api_response.data)
-        } else {
-            None
-        }
+        Some(QuotaData {
+            remaining_usd: api_response.usage.remaining_usd,
+            daily_limit_usd: api_response.usage.daily_limit_usd,
+            total_cost_usd: api_response.usage.total_cost_usd,
+            request_count: api_response.usage.request_count,
+            can_make_request: api_response.usage.can_make_request,
+            api_healthy: true,
+        })
     }
 
     fn get_quota_data(config: &QuotaConfig) -> Option<QuotaData> {
@@ -144,13 +168,65 @@ impl QuotaSegment {
         Self::load_cache().map(|c| c.data)
     }
 
-    fn format_number(n: f64) -> String {
+    fn format_usd(n: f64) -> String {
         if n >= 1000.0 {
             format!("{:.1}k", n / 1000.0)
         } else if n >= 100.0 {
             format!("{:.0}", n)
         } else {
             format!("{:.1}", n)
+        }
+    }
+
+    fn get_battery_icon(remaining_pct: f64) -> &'static str {
+        if remaining_pct > 0.95 {
+            "󰁹"  // battery-100
+        } else if remaining_pct > 0.85 {
+            "󰂂"  // battery-90
+        } else if remaining_pct > 0.75 {
+            "󰂁"  // battery-80
+        } else if remaining_pct > 0.65 {
+            "󰂀"  // battery-70
+        } else if remaining_pct > 0.55 {
+            "󰁿"  // battery-60
+        } else if remaining_pct > 0.45 {
+            "󰁾"  // battery-50
+        } else if remaining_pct > 0.35 {
+            "󰁽"  // battery-40
+        } else if remaining_pct > 0.25 {
+            "󰁼"  // battery-30
+        } else if remaining_pct > 0.15 {
+            "󰁻"  // battery-20
+        } else if remaining_pct > 0.05 {
+            "󰁺"  // battery-10
+        } else {
+            "󰂃"  // battery-alert (empty with !)
+        }
+    }
+
+    // 256-color gradient: green -> orange -> red (12 levels, evenly distributed)
+    // 100% = pure green, 50% = orange, 0% = dark red
+    fn get_color_code(remaining_pct: f64) -> String {
+        if remaining_pct > 0.90 {
+            "38;5;46".to_string()   // #00ff00 - pure green
+        } else if remaining_pct > 0.80 {
+            "38;5;82".to_string()   // #5fff00 - bright green
+        } else if remaining_pct > 0.70 {
+            "38;5;118".to_string()  // #87ff00 - green
+        } else if remaining_pct > 0.60 {
+            "38;5;154".to_string()  // #afff00 - yellow-green
+        } else if remaining_pct > 0.50 {
+            "38;5;220".to_string()  // #ffd700 - gold
+        } else if remaining_pct > 0.40 {
+            "38;5;208".to_string()  // #ff8700 - orange
+        } else if remaining_pct > 0.30 {
+            "38;5;202".to_string()  // #ff5f00 - dark orange
+        } else if remaining_pct > 0.20 {
+            "38;5;196".to_string()  // #ff0000 - red
+        } else if remaining_pct > 0.10 {
+            "38;5;160".to_string()  // #d70000 - dark red
+        } else {
+            "38;5;124".to_string()  // #af0000 - darkest red
         }
     }
 }
@@ -167,9 +243,9 @@ struct QuotaConfig {
 impl Default for QuotaConfig {
     fn default() -> Self {
         Self {
-            api_url: "https://cc.yhlxj.com/8081/api/applet/claude/code/get/dashboard".to_string(),
-            cache_ttl: 60,
-            timeout: 3,
+            api_url: "https://relay.nf.video/v1/usage".to_string(),
+            cache_ttl: 30,
+            timeout: 5,
             show_requests: false,
             warning_threshold: 0.15,
         }
@@ -181,40 +257,55 @@ impl Segment for QuotaSegment {
         let config = Self::load_quota_config();
         let data = Self::get_quota_data(&config)?;
 
-        let daily_pct = data.daily_remaining / data.daily_total;
-        let month_pct = data.month_remaining / data.month_total;
+        let remaining_pct = data.remaining_usd / data.daily_limit_usd;
+
+        // Health indicator
+        let health = if data.api_healthy { "✓" } else { "✗" };
+
+        // Dynamic battery icon based on remaining percentage
+        let battery = Self::get_battery_icon(remaining_pct);
+
+        // Dynamic color based on remaining percentage
+        let color = Self::get_color_code(remaining_pct);
 
         // Warning indicator for low quota
-        let daily_warn = if daily_pct < config.warning_threshold {
+        let warn = if remaining_pct < config.warning_threshold {
             "⚠"
         } else {
             ""
         };
 
+        // Block indicator when cannot make request
+        let block = if !data.can_make_request { "🚫" } else { "" };
+
+        // Format with ANSI color codes
+        // Use dynamic_icon for battery, amount in white, health indicator at end
+        let battery_colored = format!("\x1b[{}m{}\x1b[0m", color, battery);
+
         let primary = format!(
-            "{}日 {}/{}",
-            daily_warn,
-            Self::format_number(data.daily_remaining),
-            Self::format_number(data.daily_total)
+            "{}{}\x1b[37m${}/{}\x1b[0m {}",
+            block,
+            warn,
+            Self::format_usd(data.remaining_usd),
+            Self::format_usd(data.daily_limit_usd),
+            health
         );
 
-        let secondary = format!(
-            "月 {}/{}",
-            Self::format_number(data.month_remaining),
-            Self::format_number(data.month_total)
-        );
+        let secondary = if config.show_requests {
+            format!("{}次", data.request_count)
+        } else {
+            String::new()
+        };
 
         let mut metadata = HashMap::new();
-        metadata.insert("daily_remaining".to_string(), data.daily_remaining.to_string());
-        metadata.insert("daily_total".to_string(), data.daily_total.to_string());
-        metadata.insert("month_remaining".to_string(), data.month_remaining.to_string());
-        metadata.insert("month_total".to_string(), data.month_total.to_string());
-        metadata.insert("daily_pct".to_string(), format!("{:.1}", daily_pct * 100.0));
-        metadata.insert("month_pct".to_string(), format!("{:.1}", month_pct * 100.0));
-
-        if config.show_requests {
-            metadata.insert("today_requests".to_string(), data.today_requests.to_string());
-        }
+        metadata.insert("dynamic_icon".to_string(), battery_colored);
+        metadata.insert("remaining_usd".to_string(), data.remaining_usd.to_string());
+        metadata.insert("daily_limit_usd".to_string(), data.daily_limit_usd.to_string());
+        metadata.insert("total_cost_usd".to_string(), data.total_cost_usd.to_string());
+        metadata.insert("request_count".to_string(), data.request_count.to_string());
+        metadata.insert("remaining_pct".to_string(), format!("{:.1}", remaining_pct * 100.0));
+        metadata.insert("can_make_request".to_string(), data.can_make_request.to_string());
+        metadata.insert("api_healthy".to_string(), data.api_healthy.to_string());
 
         Some(SegmentData {
             primary,

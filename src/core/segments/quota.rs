@@ -204,29 +204,29 @@ impl QuotaSegment {
         }
     }
 
-    // 256-color gradient: green -> orange -> red (12 levels, evenly distributed)
-    // 100% = pure green, 50% = orange, 0% = dark red
+    // 256-color gradient matching ANSI 16-color style used by other segments
+    // Uses colors similar to c16 bright colors (9-14)
     fn get_color_code(remaining_pct: f64) -> String {
         if remaining_pct > 0.90 {
-            "38;5;46".to_string()   // #00ff00 - pure green
+            "38;5;10".to_string()   // bright green (like directory)
         } else if remaining_pct > 0.80 {
-            "38;5;82".to_string()   // #5fff00 - bright green
+            "38;5;10".to_string()   // bright green
         } else if remaining_pct > 0.70 {
-            "38;5;118".to_string()  // #87ff00 - green
+            "38;5;10".to_string()   // bright green
         } else if remaining_pct > 0.60 {
-            "38;5;154".to_string()  // #afff00 - yellow-green
+            "38;5;14".to_string()   // bright cyan
         } else if remaining_pct > 0.50 {
-            "38;5;220".to_string()  // #ffd700 - gold
+            "38;5;11".to_string()   // bright yellow
         } else if remaining_pct > 0.40 {
-            "38;5;208".to_string()  // #ff8700 - orange
+            "38;5;11".to_string()   // bright yellow
         } else if remaining_pct > 0.30 {
-            "38;5;202".to_string()  // #ff5f00 - dark orange
+            "38;5;3".to_string()    // yellow/orange
         } else if remaining_pct > 0.20 {
-            "38;5;196".to_string()  // #ff0000 - red
+            "38;5;9".to_string()    // bright red
         } else if remaining_pct > 0.10 {
-            "38;5;160".to_string()  // #d70000 - dark red
+            "38;5;9".to_string()    // bright red
         } else {
-            "38;5;124".to_string()  // #af0000 - darkest red
+            "38;5;1".to_string()    // red
         }
     }
 }

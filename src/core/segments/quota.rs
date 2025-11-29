@@ -268,13 +268,6 @@ impl Segment for QuotaSegment {
         // Dynamic color based on remaining percentage
         let color = Self::get_color_code(remaining_pct);
 
-        // Warning indicator for low quota
-        let warn = if remaining_pct < config.warning_threshold {
-            "⚠"
-        } else {
-            ""
-        };
-
         // Block indicator when cannot make request
         let block = if !data.can_make_request { "🚫" } else { "" };
 
@@ -283,9 +276,8 @@ impl Segment for QuotaSegment {
         let battery_colored = format!("\x1b[{}m{}\x1b[0m", color, battery);
 
         let primary = format!(
-            "{}{}\x1b[37m${}/{}\x1b[0m {}",
+            "{}\x1b[37m${}/{}\x1b[0m {}",
             block,
-            warn,
             Self::format_usd(data.remaining_usd),
             Self::format_usd(data.daily_limit_usd),
             health
